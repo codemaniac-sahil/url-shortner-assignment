@@ -18,7 +18,7 @@ interface LinksTableProps {
 export default function LinksTable({ searchQuery }: LinksTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedTag, setSelectedTag] = useState<string>("");
+  const [selectedTag, setSelectedTag] = useState<string>("all-tags");
 
   const { data: urls, isLoading } = useQuery({
     queryKey: ['/api/urls'],
@@ -60,20 +60,20 @@ export default function LinksTable({ searchQuery }: LinksTableProps) {
     }
   };
 
-  const filteredUrls = urls?.filter((url: UrlWithStats) => {
+  const filteredUrls = urls ? urls.filter((url: UrlWithStats) => {
     const matchesSearch = searchQuery === "" || 
       url.originalUrl.toLowerCase().includes(searchQuery.toLowerCase()) ||
       url.shortCode.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesTag = selectedTag === "" || 
-      url.tags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase());
+    const matchesTag = selectedTag === "all-tags" || 
+      (url.tags && url.tags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase()));
     
     return matchesSearch && matchesTag;
-  });
+  }) : [];
 
   // Get all unique tags for filter
-  const allTags = urls?.flatMap((url: UrlWithStats) => url.tags) || [];
-  const uniqueTags = [...new Set(allTags)];
+  const allTags = urls ? urls.flatMap((url: UrlWithStats) => url.tags || []) : [];
+  const uniqueTags = Array.from(new Set(allTags));
 
   if (isLoading) {
     return (
@@ -106,8 +106,8 @@ export default function LinksTable({ searchQuery }: LinksTableProps) {
                 <SelectValue placeholder="All Tags" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Tags</SelectItem>
-                {uniqueTags.map((tag) => (
+                <SelectItem value="all-tags">All Tags</SelectItem>
+                {uniqueTags.map((tag: string) => (
                   <SelectItem key={tag} value={tag}>
                     {tag}
                   </SelectItem>
@@ -177,7 +177,7 @@ export default function LinksTable({ searchQuery }: LinksTableProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-wrap gap-1">
-                      {url.tags.map((tag) => (
+                      {url.tags && url.tags.map((tag) => (
                         <Badge key={tag} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>
