@@ -36,17 +36,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create shortened URL
   app.post("/api/shorten", async (req: Request, res: Response) => {
     try {
-      const body = insertUrlSchema.extend({
-        customCode: z.string().optional(),
-        tags: z.string().optional(),
-        expiresAt: z.string().optional(),
-      }).parse(req.body);
+      const formSchema = z.object({
+        originalUrl: z.string().url("Please enter a valid URL"),
+        customCode: z.string().optional().or(z.literal("")),
+        tags: z.string().optional().or(z.literal("")),
+        expiresAt: z.string().optional().or(z.literal(""))
+      });
+      
+      const body = formSchema.parse(req.body);
 
-      let shortCode = body.customCode;
+      let shortCode: string;
       let isCustom = false;
 
-      // Generate or validate short code
-      if (shortCode) {
+      // Check if custom code is provided
+      if (body.customCode && body.customCode.trim() !== "") {
+        shortCode = body.customCode.trim();
+        
         if (!/^[a-zA-Z0-9_-]+$/.test(shortCode)) {
           return res.status(400).json({ message: "Custom code can only contain letters, numbers, hyphens, and underscores" });
         }
@@ -64,16 +69,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Parse tags
-      const tags = body.tags 
+      const tags = body.tags && body.tags.trim() !== ""
         ? body.tags.split(',').map(tag => tag.trim()).filter(Boolean)
         : [];
 
       // Parse expiry date
-      const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+      const expiresAt = body.expiresAt && body.expiresAt.trim() !== "" ? new Date(body.expiresAt) : null;
 
       const url = await storage.createUrl({
         originalUrl: body.originalUrl,
-        shortCode,
+        shortCode: shortCode,
         customCode: isCustom,
         tags,
         expiresAt,
